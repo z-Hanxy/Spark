@@ -21,43 +21,25 @@ export function parseClozeSegments(text) {
   return segments
 }
 
-export default function ClozeEditor({ value, onChange }) {
+export default function ClozeEditor({ value, onChange, onResetBlanks }) {
   const text = value || ''
   const [popup, setPopup] = useState(null)
   const [mobileBar, setMobileBar] = useState(null)
   const renderRef = useRef(null)
-  const containerRef = useRef(null)
-  const selTimerRef = useRef(null)
+  const checkTimerRef = useRef(null)
 
-  const isTouchDevice = useRef(false) // will be set on mount
+  const isTouchDevice = useRef(false)
+  const selectionState = useRef(null) // track last selection to avoid noise
 
   const segments = useMemo(() => parseClozeSegments(text), [text])
 
-  // close bubble on outside click (desktop)
-  useEffect(() => {
-    if (!popup) return
-    const handler = () => setPopup(null)
-    document.addEventListener('pointerdown', handler)
-    return () => document.removeEventListener('pointerdown', handler)
-  }, [popup])
+  // Detect if selection is inside our render area, return ctx or null
+  const checkSelection = useCallback(() => {
+    // Debounce — flush on next microtask
+    if (checkTimerRef.current) return
+    checkTimerRef.current = setTimeout(() => {
+      checkTimerRef.current = null
 
-  // close mobile bar on outside touch
-  useEffect(() => {
-    if (!mobileBar) return
-    const handler = (e) => {
-      // ignore touches on the bar itself
-      if (e.target.closest('[data-mobile-bar]')) return
-      setMobileBar(null)
-      window.getSelection()?.removeAllRanges()
-    }
-    document.addEventListener('touchstart', handler)
-    return () => document.removeEventListener('touchstart', handler)
-  }, [mobileBar])
-
-  const handleSelection = useCallback(() => {
-    const delay = isTouchDevice.current ? 300 : 10
-    if (selTimerRef.current) clearTimeout(selTimerRef.current)
-    selTimerRef.current = setTimeout(() => {
       const sel = window.getSelection()
       if (!sel || sel.isCollapsed || !sel.toString().trim()) {
         setPopup(null)
@@ -67,6 +49,18 @@ export default function ClozeEditor({ value, onChange }) {
       const selectedText = sel.toString().trim()
       if (!selectedText) { setPopup(null); setMobileBar(null); return }
 
+      // Ensure anchor is inside our render div
+      if (!renderRef.current?.contains(sel.anchorNode)) { setPopup(null); setMobileBar(null); return }
+
+      // Avoid re-processing the same selection
+      const selKey = selectedText + '|' + (sel.anchorOffset || 0)
+      if (selectionState.current === selKey) return
+      selectionState.current = selKey
+
+      const range = sel.getRangeAt(0)
+      if (!range) { setPopup(null); setMobileBar(null); return }
+
+      // detect if inside a cloze span
       let node = sel.anchorNode
       let insideCloze = false
       let clozeContent = ''
@@ -79,11 +73,8 @@ export default function ClozeEditor({ value, onChange }) {
         node = node.parentNode
       }
 
-      const range = sel.getRangeAt(0)
-      if (!range) { setPopup(null); setMobileBar(null); return }
-
       if (isTouchDevice.current) {
-        // ── mobile: fixed bottom bar ──
+        // ── mobile: bottom action bar ──
         setMobileBar({ text: selectedText, insideCloze, clozeContent })
         setPopup(null)
       } else {
@@ -98,8 +89,41 @@ export default function ClozeEditor({ value, onChange }) {
         })
         setMobileBar(null)
       }
-    }, delay)
+    }, 80)
   }, [])
+
+  // ── selectionchange listener (works on all devices) ──
+  useEffect(() => {
+    document.addEventListener('selectionchange', checkSelection)
+    return () => {
+      document.removeEventListener('selectionchange', checkSelection)
+      if (checkTimerRef.current) clearTimeout(checkTimerRef.current)
+    }
+  }, [checkSelection])
+
+  // Close desktop bubble on outside click
+  useEffect(() => {
+    if (!popup) return
+    const handler = (e) => {
+      // don't close if clicking inside the bubble
+      if (e.target.closest('[data-bubble]')) return
+      setPopup(null)
+    }
+    document.addEventListener('pointerdown', handler)
+    return () => document.removeEventListener('pointerdown', handler)
+  }, [popup])
+
+  // Close mobile bar on outside tap
+  useEffect(() => {
+    if (!mobileBar) return
+    const handler = (e) => {
+      if (e.target.closest('[data-mobile-bar]')) return
+      setMobileBar(null)
+      window.getSelection()?.removeAllRanges()
+    }
+    document.addEventListener('touchstart', handler)
+    return () => document.removeEventListener('touchstart', handler)
+  }, [mobileBar])
 
   const handleCloze = useCallback((e) => {
     if (e) e.stopPropagation()
@@ -120,11 +144,13 @@ export default function ClozeEditor({ value, onChange }) {
     setPopup(null)
     setMobileBar(null)
     window.getSelection()?.removeAllRanges()
+    selectionState.current = null
   }, [popup, mobileBar, text, onChange])
 
   const handleCancelMobile = useCallback(() => {
     setMobileBar(null)
     window.getSelection()?.removeAllRanges()
+    selectionState.current = null
   }, [])
 
   const handleTextChange = (e) => {
@@ -134,16 +160,15 @@ export default function ClozeEditor({ value, onChange }) {
   }
 
   useEffect(() => {
-    isTouchDevice.current = 'ontouchstart' in window
+    isTouchDevice.current = 'ontouchstart' in window || navigator.maxTouchPoints > 0
   }, [])
 
-  // cleanup timer
   useEffect(() => {
-    return () => { if (selTimerRef.current) clearTimeout(selTimerRef.current) }
+    return () => { if (checkTimerRef.current) clearTimeout(checkTimerRef.current) }
   }, [])
 
   return (
-    <div className="space-y-3" ref={containerRef}>
+    <div className="space-y-3">
       <div>
         <label className="mb-1 block text-sm font-medium text-gray-700">文本内容</label>
         <textarea
@@ -156,14 +181,26 @@ export default function ClozeEditor({ value, onChange }) {
       </div>
 
       <div>
-        <label className="mb-1 block text-sm font-medium text-gray-700">
-          预览 <span className="font-normal text-gray-400">（选中文字后点"设为挖空"添加高亮）</span>
-        </label>
+        <div className="mb-1 flex items-center justify-between">
+          <label className="text-sm font-medium text-gray-700">
+            预览 <span className="font-normal text-gray-400">（选中文字后点击"设为挖空"）</span>
+          </label>
+          {onResetBlanks && (
+            <button
+              onClick={() => {
+                if (window.confirm('将移除所有挖空标记，恢复为原始文本。确定？')) {
+                  onResetBlanks()
+                }
+              }}
+              className="touch-manipulation cursor-pointer rounded-lg bg-red-50 px-2.5 py-1 text-xs font-medium text-red-500 border border-red-200 active:bg-red-100"
+            >
+              ↺ 重置全部挖空
+            </button>
+          )}
+        </div>
         <div
           ref={renderRef}
-          onMouseUp={handleSelection}
-          onTouchEnd={handleSelection}
-          className="relative min-h-[3rem] touch-pan-y rounded-lg border border-gray-200 bg-white px-4 py-3 text-base leading-relaxed text-gray-800 select-text"
+          className="relative min-h-[3rem] rounded-lg border border-gray-200 bg-white px-4 py-3 text-base leading-relaxed text-gray-800 select-text"
           style={{ WebkitUserSelect: 'text', userSelect: 'text' }}
         >
           {segments.map((seg, i) =>
@@ -171,7 +208,7 @@ export default function ClozeEditor({ value, onChange }) {
               <span
                 key={i}
                 data-cloze={seg.content}
-                className="inline rounded bg-blue-100 px-1.5 py-0.5 text-blue-700 font-medium cursor-pointer select-text"
+                className="inline rounded bg-blue-100 px-1.5 py-0.5 text-blue-700 font-medium select-text"
                 style={{ WebkitUserSelect: 'text', userSelect: 'text' }}
               >
                 {seg.content}
@@ -184,6 +221,7 @@ export default function ClozeEditor({ value, onChange }) {
           {/* ── desktop: floating bubble ── */}
           {popup && (
             <div
+              data-bubble
               className="absolute z-30 -translate-x-1/2"
               style={{
                 left: popup.x - (renderRef.current?.getBoundingClientRect().left || 0),
@@ -206,30 +244,30 @@ export default function ClozeEditor({ value, onChange }) {
         </div>
       </div>
 
-      {/* ── mobile: fixed bottom bar ── */}
+      {/* ── mobile: prominent bottom action bar ── */}
       {mobileBar && (
         <div
           data-mobile-bar
-          className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]"
+          className="fixed inset-x-0 bottom-0 z-50 border-t border-gray-200 bg-white px-4 py-3 shadow-[0_-6px_24px_rgba(0,0,0,0.1)]"
           style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))' }}
         >
           <div className="flex items-center justify-between gap-3">
-            <p className="truncate text-xs text-gray-500">
-              已选中：<span className="font-medium text-gray-700">「{mobileBar.text}」</span>
+            <p className="truncate text-sm text-gray-500">
+              已选中：<span className="font-semibold text-gray-800">「{mobileBar.text}」</span>
             </p>
-            <div className="flex shrink-0 gap-2">
+            <div className="flex shrink-0 gap-3">
               <button
                 onClick={handleCancelMobile}
-                className="touch-manipulation cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-600 active:bg-gray-100"
+                className="touch-manipulation cursor-pointer rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-semibold text-gray-600 active:bg-gray-100 min-w-[64px]"
               >
                 取消
               </button>
               <button
                 onClick={handleCloze}
-                className={`touch-manipulation cursor-pointer rounded-lg px-4 py-2 text-sm font-medium text-white active:opacity-80 ${
+                className={`touch-manipulation cursor-pointer rounded-xl px-5 py-2.5 text-sm font-semibold text-white active:opacity-80 min-w-[88px] ${
                   mobileBar.insideCloze
-                    ? 'bg-red-500 hover:bg-red-600'
-                    : 'bg-indigo-600 hover:bg-indigo-700'
+                    ? 'bg-red-500 active:bg-red-600'
+                    : 'bg-indigo-600 active:bg-indigo-700'
                 }`}
               >
                 {mobileBar.insideCloze ? '取消挖空' : '设为挖空'}

@@ -46,6 +46,14 @@ export default function CardDetail() {
     setCard((prev) => ({ ...prev, clozeProcessedText: newVal }))
   }
 
+  const handleResetBlanks = async () => {
+    const currentText = card.clozeProcessedText || card.clozeText || ''
+    // Strip all {{...}} markers
+    const cleaned = currentText.replace(/\{\{(.+?)\}\}/g, '$1')
+    await db.cards.update(cardId, { clozeProcessedText: cleaned })
+    setCard((prev) => ({ ...prev, clozeProcessedText: cleaned }))
+  }
+
   const handleMatchSave = (leftText, rightText) => {
     setMatchLeftText(leftText)
     setMatchRightText(rightText)
@@ -114,6 +122,7 @@ export default function CardDetail() {
             <ClozeEditor
               value={card.clozeProcessedText || card.clozeText || ''}
               onChange={handleClozeChange}
+              onResetBlanks={handleResetBlanks}
             />
           </div>
         ) : isMatch ? (

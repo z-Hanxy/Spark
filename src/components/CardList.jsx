@@ -38,10 +38,10 @@ export default function CardList({
   // mobile: more menu & delete confirm
   const [isTouch, setIsTouch] = useState(false)
   const [menuCardId, setMenuCardId] = useState(null)
-  const [deleteTarget, setDeleteTarget] = useState(null) // { id, question }
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   useEffect(() => {
-    setIsTouch('ontouchstart' in window)
+    setIsTouch(('ontouchstart' in window) || navigator.maxTouchPoints > 0)
   }, [])
 
   // close menu on outside click
@@ -156,35 +156,42 @@ export default function CardList({
                       <p className="mt-0.5 truncate text-xs text-gray-400">{displaySub}</p>
                     </div>
 
-                    {/* ── desktop: hover buttons ── */}
-                    <div className="ml-2 flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); openEdit(card) }}
-                        className="cursor-pointer rounded p-0.5 text-gray-400 hover:bg-blue-100 hover:text-blue-500"
-                        title="编辑"
-                      >
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); onDeleteCard(card.id) }}
-                        className="cursor-pointer rounded p-0.5 text-gray-400 hover:bg-red-100 hover:text-red-500"
-                        title="删除"
-                      >
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
+                    {/* ── desktop: hover buttons (hidden on touch devices) ── */}
+                    {!isTouch && (
+                      <div className="ml-2 flex shrink-0 gap-0.5 opacity-0 group-hover:opacity-100">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); openEdit(card) }}
+                          className="cursor-pointer rounded p-0.5 text-gray-400 hover:bg-blue-100 hover:text-blue-500"
+                          title="编辑"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDeleteCard(card.id) }}
+                          className="cursor-pointer rounded p-0.5 text-gray-400 hover:bg-red-100 hover:text-red-500"
+                          title="删除"
+                        >
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    )}
 
-                    {/* ── mobile: ⋮ more button ── */}
+                    {/* ── mobile: ⋮ more button (always visible, 44x44 touch target) ── */}
                     {isTouch && (
                       <button
-                        onClick={(e) => { e.stopPropagation(); setMenuCardId(menuCardId === card.id ? null : card.id) }}
-                        className="ml-2 shrink-0 cursor-pointer rounded-lg p-1 text-gray-400 hover:bg-gray-200"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          e.preventDefault()
+                          setMenuCardId(menuCardId === card.id ? null : card.id)
+                        }}
+                        className="ml-2 shrink-0 cursor-pointer rounded-lg p-2 text-gray-400 active:bg-gray-200 touch-manipulation"
+                        style={{ minWidth: 44, minHeight: 44 }}
                       >
-                        <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                        <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
                         </svg>
                       </button>
@@ -193,23 +200,23 @@ export default function CardList({
                     {/* ── mobile: dropdown menu ── */}
                     {isTouch && menuCardId === card.id && (
                       <div
-                        className="absolute right-2 top-full z-40 mt-1 w-32 rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
-                        onClick={(e) => e.stopPropagation()}
+                        className="absolute right-2 top-full z-40 mt-1 w-36 rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
+                        onClick={(e) => { e.stopPropagation(); e.preventDefault() }}
                       >
                         <button
                           onClick={() => { setMenuCardId(null); openEdit(card) }}
-                          className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                          className="flex w-full items-center gap-2 px-4 py-3 text-sm text-gray-700 active:bg-gray-50 touch-manipulation"
                         >
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                           </svg>
                           编辑
                         </button>
                         <button
                           onClick={() => { setMenuCardId(null); setDeleteTarget({ id: card.id, question: displayText }) }}
-                          className="flex w-full items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                          className="flex w-full items-center gap-2 px-4 py-3 text-sm text-red-600 active:bg-red-50 touch-manipulation"
                         >
-                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                           删除
@@ -310,10 +317,10 @@ export default function CardList({
             将删除卡片「<span className="font-medium text-gray-800">{deleteTarget?.question?.slice(0, 40)}{(deleteTarget?.question?.length > 40) ? '…' : ''}</span>」，此操作不可撤销。
           </p>
           <div className="flex justify-end gap-2">
-            <button onClick={() => setDeleteTarget(null)} className="cursor-pointer rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">取消</button>
+            <button onClick={() => setDeleteTarget(null)} className="touch-manipulation cursor-pointer rounded-lg px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">取消</button>
             <button
               onClick={() => { onDeleteCard(deleteTarget.id); setDeleteTarget(null) }}
-              className="cursor-pointer rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+              className="touch-manipulation cursor-pointer rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
             >
               确认删除
             </button>
