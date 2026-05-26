@@ -47,7 +47,10 @@ export default function CardList({
   // close menu on outside click
   useEffect(() => {
     if (menuCardId === null) return
-    const handler = () => setMenuCardId(null)
+    const handler = (e) => {
+      if (e.target.closest('[data-dropdown]')) return
+      setMenuCardId(null)
+    }
     document.addEventListener('pointerdown', handler)
     return () => document.removeEventListener('pointerdown', handler)
   }, [menuCardId])
@@ -200,11 +203,12 @@ export default function CardList({
                     {/* ── mobile: dropdown menu ── */}
                     {isTouch && menuCardId === card.id && (
                       <div
+                        data-dropdown
                         className="absolute right-2 top-full z-40 mt-1 w-36 rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
-                        onClick={(e) => { e.stopPropagation(); e.preventDefault() }}
+                        onPointerDown={(e) => { e.stopPropagation(); e.preventDefault() }}
                       >
                         <button
-                          onClick={() => { setMenuCardId(null); openEdit(card) }}
+                          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); setMenuCardId(null); openEdit(card) }}
                           className="flex w-full items-center gap-2 px-4 py-3 text-sm text-gray-700 active:bg-gray-50 touch-manipulation"
                         >
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -213,7 +217,7 @@ export default function CardList({
                           编辑
                         </button>
                         <button
-                          onClick={() => { setMenuCardId(null); setDeleteTarget({ id: card.id, question: displayText }) }}
+                          onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); setMenuCardId(null); setDeleteTarget({ id: card.id, question: displayText }) }}
                           className="flex w-full items-center gap-2 px-4 py-3 text-sm text-red-600 active:bg-red-50 touch-manipulation"
                         >
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -24,7 +24,10 @@ export default function Sidebar({
   // close menu on outside click
   useEffect(() => {
     if (menuFolderId === null) return
-    const handler = () => setMenuFolderId(null)
+    const handler = (e) => {
+      if (e.target.closest('[data-dropdown]')) return
+      setMenuFolderId(null)
+    }
     document.addEventListener('pointerdown', handler)
     return () => document.removeEventListener('pointerdown', handler)
   }, [menuFolderId])
@@ -111,11 +114,14 @@ export default function Sidebar({
                 {/* ── mobile: dropdown menu ── */}
                 {isTouch && menuFolderId === folder.id && (
                   <div
+                    data-dropdown
                     className="absolute right-2 top-full z-40 mt-1 w-36 rounded-xl border border-gray-200 bg-white py-1 shadow-lg"
-                    onClick={(e) => { e.stopPropagation(); e.preventDefault() }}
+                    onPointerDown={(e) => { e.stopPropagation(); e.preventDefault() }}
                   >
                     <button
-                      onClick={() => {
+                      onPointerDown={(e) => {
+                        e.stopPropagation()
+                        e.preventDefault()
                         setMenuFolderId(null)
                         setDeleteTarget({ id: folder.id, name: folder.name })
                       }}
