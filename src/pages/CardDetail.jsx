@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import ClozeEditor from '../components/ClozeEditor.jsx'
 import db from '../db.js'
+import useMobileBack from '../hooks/useMobileBack.js'
 
 function typeLabel(v) {
   const m = { qa: '问答题', cloze: '填空题', match: '连线题' }
@@ -22,6 +23,8 @@ export default function CardDetail() {
   const [matchRightText, setMatchRightText] = useState('')
   const [matchError, setMatchError] = useState('')
   const matchSaveTimer = useRef(null)
+
+  useMobileBack()
 
   const load = useCallback(async () => {
     const c = await db.cards.get(cardId)

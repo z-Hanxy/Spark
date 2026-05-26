@@ -2,10 +2,13 @@ import { useState, useEffect, useCallback } from 'react'
 import Sidebar from '../components/Sidebar.jsx'
 import DashboardStats from '../components/DashboardStats.jsx'
 import db from '../db.js'
+import useMobileBack from '../hooks/useMobileBack.js'
 
 export default function Dashboard() {
   const [folders, setFolders] = useState([])
   const [statsKey, setStatsKey] = useState(0)
+
+  useMobileBack({ isRoot: true })
 
   const refreshStats = () => setStatsKey((k) => k + 1)
 

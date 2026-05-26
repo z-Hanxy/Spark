@@ -2,11 +2,14 @@ import { useState, useEffect, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import CardList from '../components/CardList.jsx'
 import db from '../db.js'
+import useMobileBack from '../hooks/useMobileBack.js'
 
 export default function FolderDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const folderId = Number(id)
+
+  useMobileBack()
 
   const [folder, setFolder] = useState(null)
   const [cards, setCards] = useState([])

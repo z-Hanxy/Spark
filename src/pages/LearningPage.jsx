@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import db from '../db.js'
 import ClozeLearning from '../components/ClozeLearning.jsx'
 import MatchLearning from '../components/MatchLearning.jsx'
+import useMobileBack from '../hooks/useMobileBack.js'
 
 function todayDateStr() {
   const d = new Date()
@@ -32,6 +33,8 @@ export default function LearningPage() {
 
   // track which cards have been reviewed this session
   const reviewedIdsRef = useRef(new Set())
+
+  useMobileBack()
 
   // ── queue empty → force-reset unreviewed cards due today ──
   const forceRef = useRef(false)
